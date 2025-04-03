@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"google.golang.org/grpc"
 	"net"
 	"net/http"
 
 	"github.com/DavidMovas/gopherbox/pkg/closer"
-	authpb "github.com/QuizWars-Ecosystem/api-grpc-gateway/gen/external/auth/v1"
+	users "github.com/QuizWars-Ecosystem/api-grpc-gateway/gen/external/users/v1"
 	"github.com/QuizWars-Ecosystem/api-grpc-gateway/internal/config"
 	"github.com/QuizWars-Ecosystem/api-grpc-gateway/internal/gateway"
 	"github.com/QuizWars-Ecosystem/go-common/pkg/abstractions"
@@ -34,8 +36,13 @@ func NewServer(_ context.Context, cfg *config.Config) (*Server, error) {
 
 	srvOpts := []*gateway.ServiceOption{
 		{
-			Address:      "auth_service",
-			RegisterFunc: authpb.RegisterAuthServiceHandler,
+			Address: "auth_service",
+			RegisterFunc: []func(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error{
+				users.RegisterUsersAdminServiceHandler,
+				users.RegisterUsersAuthServiceHandler,
+				users.RegisterUsersProfileServiceHandler,
+				users.RegisterUsersSocialServiceHandler,
+			},
 		},
 	}
 
@@ -69,18 +76,18 @@ func (s *Server) Start() error {
 		logger.Info("starting http runtime server", zap.String("port", httpPort))
 
 		if ls, err := net.Listen("tcp", fmt.Sprintf(":%s", httpPort)); err == nil {
-			runtime := s.gateway.Runtime()
-			tcpSrv := &http.Server{Handler: runtime}
+			mux := s.gateway.Runtime()
+			tcpSrv := &http.Server{Handler: mux}
 
 			s.closer.PushIO(ls)
 			s.closer.PushIO(tcpSrv)
 
 			if err = tcpSrv.Serve(ls); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				logger.Error("error serving http runtime server", zap.Error(err))
+				logger.Error("error serving http mux server", zap.Error(err))
 				return err
 			}
 
-			logger.Info("http runtime server stopped")
+			logger.Info("http mux server stopped")
 
 			return nil
 		} else {

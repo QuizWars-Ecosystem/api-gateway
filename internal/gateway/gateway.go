@@ -16,7 +16,7 @@ import (
 
 type ServiceOption struct {
 	Address      string
-	RegisterFunc func(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error
+	RegisterFunc []func(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error
 	DialOptions  []grpc.DialOption
 }
 
@@ -71,9 +71,11 @@ func NewGateway(consulURL string, serviceOpts []*ServiceOption, logger *log.Logg
 
 		gt.grpcConns[opt.Address] = conn
 
-		if err = opt.RegisterFunc(gt.ctx, runtimeMux, conn); err != nil {
-			logger.Zap().Fatal("error registering service", zap.String("address", opt.Address), zap.Error(err))
-			return nil, fmt.Errorf("error registering service: %w", err)
+		for _, registerFunc := range opt.RegisterFunc {
+			if err = registerFunc(gt.ctx, runtimeMux, conn); err != nil {
+				logger.Zap().Fatal("error registering service", zap.String("address", opt.Address), zap.Error(err))
+				return nil, fmt.Errorf("error registering service: %w", err)
+			}
 		}
 
 		logger.Zap().Debug("registered service", zap.String("address", opt.Address))
