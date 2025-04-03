@@ -3,3 +3,9 @@ buf-gen:
 
 proto-pull:
 	git submodule update --remote --force protobuf
+
+go-fmt:
+	gofumpt -l -w .
+
+go-lint:
+	golangci-lint run ./...
