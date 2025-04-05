@@ -36,7 +36,7 @@ func NewServer(_ context.Context, cfg *config.Config) (*Server, error) {
 
 	srvOpts := []*gateway.ServiceOption{
 		{
-			Address: "auth_service",
+			Address: "users_service",
 			RegisterFunc: []func(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error{
 				users.RegisterUsersAdminServiceHandler,
 				users.RegisterUsersAuthServiceHandler,
