@@ -3,7 +3,7 @@ package gateway
 import (
 	"time"
 
-	"github.com/QuizWars-Ecosystem/api-grpc-gateway/internal/middlewares"
+	"github.com/QuizWars-Ecosystem/api-gateway/internal/middlewares"
 	"github.com/QuizWars-Ecosystem/go-common/pkg/grpcx/errors"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/siderolabs/grpc-proxy/proxy"

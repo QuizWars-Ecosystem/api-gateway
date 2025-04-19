@@ -1,4 +1,4 @@
-module github.com/QuizWars-Ecosystem/api-grpc-gateway
+module github.com/QuizWars-Ecosystem/api-gateway
 
 go 1.24.2
 

@@ -10,9 +10,9 @@ import (
 	"net/http"
 
 	"github.com/DavidMovas/gopherbox/pkg/closer"
-	users "github.com/QuizWars-Ecosystem/api-grpc-gateway/gen/external/users/v1"
-	"github.com/QuizWars-Ecosystem/api-grpc-gateway/internal/config"
-	"github.com/QuizWars-Ecosystem/api-grpc-gateway/internal/gateway"
+	users "github.com/QuizWars-Ecosystem/api-gateway/gen/external/users/v1"
+	"github.com/QuizWars-Ecosystem/api-gateway/internal/config"
+	"github.com/QuizWars-Ecosystem/api-gateway/internal/gateway"
 	"github.com/QuizWars-Ecosystem/go-common/pkg/abstractions"
 	"github.com/QuizWars-Ecosystem/go-common/pkg/log"
 	"go.uber.org/zap"

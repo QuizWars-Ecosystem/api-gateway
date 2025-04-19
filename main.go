@@ -10,8 +10,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	gateway "github.com/QuizWars-Ecosystem/api-grpc-gateway/internal/config"
-	"github.com/QuizWars-Ecosystem/api-grpc-gateway/internal/server"
+	gateway "github.com/QuizWars-Ecosystem/api-gateway/internal/config"
+	"github.com/QuizWars-Ecosystem/api-gateway/internal/server"
 	"github.com/QuizWars-Ecosystem/go-common/pkg/abstractions"
 	"github.com/QuizWars-Ecosystem/go-common/pkg/config"
 )
