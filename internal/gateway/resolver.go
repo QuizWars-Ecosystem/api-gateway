@@ -71,7 +71,7 @@ func (r *Resolver) watch() {
 func (r *Resolver) update(entries []*api.ServiceEntry) {
 	addrs := make([]resolver.Address, 0, len(entries))
 
-	r.logger.Debug("updating resolver address state", zap.String("target", r.target.String()), zap.Int("amount", len(entries)))
+	r.logger.Info("updating resolver address state", zap.String("target", r.target.String()), zap.Int("amount", len(entries)))
 
 	for _, entry := range entries {
 		addrs = append(addrs, resolver.Address{

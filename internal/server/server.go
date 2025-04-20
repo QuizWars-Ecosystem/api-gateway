@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 	"net"
 	"net/http"
 
 	"github.com/DavidMovas/gopherbox/pkg/closer"
-	users "github.com/QuizWars-Ecosystem/api-gateway/gen/external/users/v1"
+	questionsv1 "github.com/QuizWars-Ecosystem/api-gateway/gen/external/questions/v1"
+	usersv1 "github.com/QuizWars-Ecosystem/api-gateway/gen/external/users/v1"
 	"github.com/QuizWars-Ecosystem/api-gateway/internal/config"
 	"github.com/QuizWars-Ecosystem/api-gateway/internal/gateway"
 	"github.com/QuizWars-Ecosystem/go-common/pkg/abstractions"
@@ -36,12 +38,20 @@ func NewServer(_ context.Context, cfg *config.Config) (*Server, error) {
 
 	srvOpts := []*gateway.ServiceOption{
 		{
-			Address: "users_service",
+			Address: "users-service",
 			RegisterFunc: []func(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error{
-				users.RegisterUsersAdminServiceHandler,
-				users.RegisterUsersAuthServiceHandler,
-				users.RegisterUsersProfileServiceHandler,
-				users.RegisterUsersSocialServiceHandler,
+				usersv1.RegisterUsersAuthServiceHandler,
+				usersv1.RegisterUsersAdminServiceHandler,
+				usersv1.RegisterUsersSocialServiceHandler,
+				usersv1.RegisterUsersProfileServiceHandler,
+			},
+		},
+		{
+			Address: "questions-service",
+			RegisterFunc: []func(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error{
+				questionsv1.RegisterQuestionsServiceHandler,
+				questionsv1.RegisterQuestionsAdminServiceHandler,
+				questionsv1.RegisterQuestionsClientServiceHandler,
 			},
 		},
 	}
@@ -50,6 +60,10 @@ func NewServer(_ context.Context, cfg *config.Config) (*Server, error) {
 	if err != nil {
 		logger.Zap().Error("error initializing gateway", zap.Error(err))
 		return nil, err
+	}
+
+	if cfg.Local {
+		reflection.Register(gt.Proxy())
 	}
 
 	return &Server{

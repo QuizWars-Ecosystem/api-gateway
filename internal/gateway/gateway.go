@@ -3,8 +3,6 @@ package gateway
 import (
 	"context"
 	"fmt"
-
-	"github.com/QuizWars-Ecosystem/go-common/pkg/consul"
 	"github.com/QuizWars-Ecosystem/go-common/pkg/log"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/hashicorp/consul/api"
@@ -12,6 +10,7 @@ import (
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"strings"
 )
 
 type ServiceOption struct {
@@ -26,7 +25,7 @@ type Gateway struct {
 	consul       *api.Client
 	runtimeMux   *runtime.ServeMux
 	grpcProxyMux *grpc.Server
-	plans        []*consul.Plan
+	plans        []*Plan
 	plansInputs  []chan []*api.ServiceEntry
 	plansErrCh   chan error
 	grpcConns    map[string]*grpc.ClientConn
@@ -69,7 +68,7 @@ func NewGateway(consulURL string, serviceOpts []*ServiceOption, logger *log.Logg
 			return nil, fmt.Errorf("error creating grpc client: %w", err)
 		}
 
-		gt.grpcConns[opt.Address] = conn
+		gt.grpcConns[strings.ReplaceAll(opt.Address, "-", "")] = conn
 
 		for _, registerFunc := range opt.RegisterFunc {
 			if err = registerFunc(gt.ctx, runtimeMux, conn); err != nil {
@@ -78,9 +77,9 @@ func NewGateway(consulURL string, serviceOpts []*ServiceOption, logger *log.Logg
 			}
 		}
 
-		logger.Zap().Debug("registered service", zap.String("address", opt.Address))
+		logger.Zap().Info("registered service", zap.String("address", opt.Address))
 
-		plan := consul.NewPlan(client, logger, opt.Address, queue)
+		plan := NewPlan(client, logger, opt.Address, queue)
 
 		gt.plans = append(gt.plans, plan)
 		gt.plansInputs = append(gt.plansInputs, queue)
