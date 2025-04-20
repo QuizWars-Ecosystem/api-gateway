@@ -15,6 +15,7 @@ protobuf
 .gitmodules
 Makefile
 README.md
+config/config.yaml
 
 # Test binary, built with `go test -c`
 *.test
