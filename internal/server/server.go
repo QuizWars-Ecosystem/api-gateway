@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/QuizWars-Ecosystem/api-gateway/internal/mux"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -59,6 +60,12 @@ func NewServer(_ context.Context, cfg *config.Config) (*Server, error) {
 	gt, err := gateway.NewGateway(cfg.ConsulURL, srvOpts, logger)
 	if err != nil {
 		logger.Zap().Error("error initializing gateway", zap.Error(err))
+		return nil, err
+	}
+
+	err = mux.RegisterRuntimeMux(gt.Runtime())
+	if err != nil {
+		logger.Zap().Error("error registering runtime mux", zap.Error(err))
 		return nil, err
 	}
 
