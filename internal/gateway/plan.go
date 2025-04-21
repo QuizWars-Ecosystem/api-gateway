@@ -61,6 +61,5 @@ func (p *Plan) Stop() {
 
 	if p.plan.IsStopped() {
 		close(p.input)
-		close(p.errCh)
 	}
 }

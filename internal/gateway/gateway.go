@@ -129,6 +129,8 @@ func (gt *Gateway) Stop() error {
 		plan.Stop()
 	}
 
+	close(gt.plansErrCh)
+
 	var errs error
 	var err error
 
@@ -147,7 +149,10 @@ func (gt *Gateway) Stop() error {
 }
 
 func (gt *Gateway) handleWatchErrors() {
-	for err := range gt.plansErrCh {
+	select {
+	case <-gt.ctx.Done():
+		return
+	case err := <-gt.plansErrCh:
 		if err != nil {
 			gt.logger.Zap().Warn("plan watch error", zap.Error(err))
 		}

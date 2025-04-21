@@ -97,18 +97,18 @@ func (s *Server) Start() error {
 		logger.Info("starting http runtime server", zap.String("port", httpPort))
 
 		if ls, err := net.Listen("tcp", fmt.Sprintf(":%s", httpPort)); err == nil {
-			mux := s.gateway.Runtime()
-			tcpSrv := &http.Server{Handler: mux}
+			serveMux := s.gateway.Runtime()
+			tcpSrv := &http.Server{Handler: serveMux}
 
 			s.closer.PushIO(ls)
 			s.closer.PushIO(tcpSrv)
 
 			if err = tcpSrv.Serve(ls); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				logger.Error("error serving http mux server", zap.Error(err))
+				logger.Error("error serving http serveMux server", zap.Error(err))
 				return err
 			}
 
-			logger.Info("http mux server stopped")
+			logger.Info("http serveMux server stopped")
 
 			return nil
 		} else {
