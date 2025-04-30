@@ -3,13 +3,20 @@ package gateway
 import (
 	"context"
 	"fmt"
+	"github.com/QuizWars-Ecosystem/go-common/pkg/grpcx/telemetry"
 	"github.com/QuizWars-Ecosystem/go-common/pkg/log"
+	grpcrecovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
+	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/hashicorp/consul/api"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/siderolabs/grpc-proxy/proxy"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel/sdk/trace"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"net/http"
 	"strings"
 )
 
@@ -23,13 +30,14 @@ type Gateway struct {
 	ctx          context.Context
 	cancel       context.CancelFunc
 	consul       *api.Client
-	runtimeMux   *runtime.ServeMux
+	serveMux     *http.ServeMux
 	grpcProxyMux *grpc.Server
 	plans        []*Plan
 	plansInputs  []chan []*api.ServiceEntry
 	plansErrCh   chan error
 	grpcConns    map[string]*grpc.ClientConn
 	logger       *log.Logger
+	provider     *trace.TracerProvider
 }
 
 func NewGateway(consulURL string, serviceOpts []*ServiceOption, logger *log.Logger) (*Gateway, error) {
@@ -38,6 +46,10 @@ func NewGateway(consulURL string, serviceOpts []*ServiceOption, logger *log.Logg
 	z := logger.Zap()
 
 	runtimeMux := runtime.NewServeMux(standardServerMuxOptions(z)...)
+
+	serveMux := http.NewServeMux()
+	serveMux.Handle("/", runtimeMux)
+	serveMux.Handle("/metrics", promhttp.Handler())
 
 	cfg := api.DefaultConfig()
 	cfg.Address = consulURL
@@ -48,7 +60,7 @@ func NewGateway(consulURL string, serviceOpts []*ServiceOption, logger *log.Logg
 		return nil, fmt.Errorf("error creating client client: %w", err)
 	}
 
-	gt.runtimeMux = runtimeMux
+	gt.serveMux = serveMux
 	gt.ctx, gt.cancel = context.WithCancel(context.Background())
 	gt.consul = client
 	gt.logger = logger
@@ -87,9 +99,29 @@ func NewGateway(consulURL string, serviceOpts []*ServiceOption, logger *log.Logg
 
 	p := NewProxy(gt.grpcConns, logger.Zap())
 
+	provider, err := telemetry.NewTracerProvider(gt.ctx, "gateway", "otel-collector:4317")
+	if err != nil {
+		logger.Zap().Error("error initializing telemetry tracer", zap.Error(err))
+	}
+
+	gt.provider = provider
+
 	grpcServerOpts := []grpc.ServerOption{
 		grpc.ForceServerCodecV2(proxy.Codec()),
 		grpc.UnknownServiceHandler(proxy.TransparentHandler(p.Director)),
+		grpc.ChainUnaryInterceptor(
+			grpcrecovery.UnaryServerInterceptor(),
+			grpcprometheus.UnaryServerInterceptor,
+		),
+		grpc.ChainStreamInterceptor(
+			grpcrecovery.StreamServerInterceptor(),
+			grpcprometheus.StreamServerInterceptor,
+		),
+		grpc.StatsHandler(
+			otelgrpc.NewServerHandler(
+				otelgrpc.WithTracerProvider(provider),
+			),
+		),
 	}
 
 	grpcServerOpts = append(grpcServerOpts, standardServerOptions(logger.Zap())...)
@@ -101,8 +133,8 @@ func NewGateway(consulURL string, serviceOpts []*ServiceOption, logger *log.Logg
 	return &gt, err
 }
 
-func (gt *Gateway) Runtime() *runtime.ServeMux {
-	return gt.runtimeMux
+func (gt *Gateway) ServeMux() *http.ServeMux {
+	return gt.serveMux
 }
 
 func (gt *Gateway) Proxy() *grpc.Server {
@@ -129,6 +161,8 @@ func (gt *Gateway) Stop() error {
 		plan.Stop()
 	}
 
+	close(gt.plansErrCh)
+
 	var errs error
 	var err error
 
@@ -139,6 +173,10 @@ func (gt *Gateway) Stop() error {
 		}
 	}
 
+	if err = gt.provider.Shutdown(gt.ctx); err != nil {
+		gt.logger.Zap().Error("error shutting down tracer", zap.Error(err))
+	}
+
 	gt.cancel()
 
 	gt.logger.Zap().Debug("gateway stopped")
@@ -147,7 +185,10 @@ func (gt *Gateway) Stop() error {
 }
 
 func (gt *Gateway) handleWatchErrors() {
-	for err := range gt.plansErrCh {
+	select {
+	case <-gt.ctx.Done():
+		return
+	case err := <-gt.plansErrCh:
 		if err != nil {
 			gt.logger.Zap().Warn("plan watch error", zap.Error(err))
 		}

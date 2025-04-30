@@ -15,7 +15,9 @@ protobuf
 .gitmodules
 Makefile
 README.md
-config/config.yaml
+.github
+.golanci.yml
+LICENSE
 
 # Test binary, built with `go test -c`
 *.test
