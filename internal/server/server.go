@@ -63,7 +63,7 @@ func NewServer(_ context.Context, cfg *config.Config) (*Server, error) {
 		return nil, err
 	}
 
-	err = mux.RegisterRuntimeMux(gt.Runtime())
+	err = mux.RegisterRuntimeMux(gt.ServeMux())
 	if err != nil {
 		logger.Zap().Error("error registering runtime mux", zap.Error(err))
 		return nil, err
@@ -97,7 +97,7 @@ func (s *Server) Start() error {
 		logger.Info("starting http runtime server", zap.String("port", httpPort))
 
 		if ls, err := net.Listen("tcp", fmt.Sprintf(":%s", httpPort)); err == nil {
-			serveMux := s.gateway.Runtime()
+			serveMux := s.gateway.ServeMux()
 			tcpSrv := &http.Server{Handler: serveMux}
 
 			s.closer.PushIO(ls)
