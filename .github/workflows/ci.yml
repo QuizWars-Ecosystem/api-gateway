@@ -49,7 +49,7 @@ jobs:
       - name: Run go-semantic-release
         uses: go-semantic-release/action@v1
         with:
-          hooks: goreleaser
+          hooks: none
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
